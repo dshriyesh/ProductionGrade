@@ -47,14 +47,14 @@ const userSchema = new Schema({
     }
 },{timestamps:true})
 
-userSchema.pre("save", async function(next){
+userSchema.pre("save", async function(next){ // here we are encrypting the password just before saving it 
     if(!this.isModified("password")) return next();
 
     this.password = bcrypt.hash(this.password, 10)
     next()
 })
 
-userSchema.methods.isPasswordCorrect = async function(password){
+userSchema.methods.isPasswordCorrect = async function(password){ // here we are checking if the password is same as stored in database
     return await bcrypt.compare(password,this.password)
 }
 
