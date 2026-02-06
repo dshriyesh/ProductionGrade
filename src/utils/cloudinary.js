@@ -1,5 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary'
-import fs from 'fs'
+import fs from 'fs' // stands for file system
 
 
 cloudinary.config({ 
@@ -32,3 +32,6 @@ const uploadOnCloudinary=async(localFilePath)=>{
 
 export {uploadOnCloudinary}
 
+// we would accept file from user
+// than we will use multer to store file temporarily on our local server
+//than upload file from local storage to cloudinary
