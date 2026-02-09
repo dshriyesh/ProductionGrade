@@ -5,6 +5,24 @@ import {uploadOnCloudinary} from '../utils/cloudinary.js'
 import {ApiResponse} from '../utils/APiresponse.js'
 
 
+// we might have to generate access token and refrsh token again
+// therefore maded function for that
+const generateAccessAndRefreshTokens = async(userId)=>{
+    try{
+        const user = await User.findById(userId)
+        const accessToken =  user.generateAccessToken() // predefind methods
+        const refreshToken = user.generateRefreshToken()
+
+        user.refreshToken=refreshToken //storing refresh token in database
+        await user.save({validateBeforeSave: false}) // ensuring that database doesnot check for all the other required fields
+
+        return {accessToken,refreshToken}
+
+    }catch(error){
+        throw new ApiError(500,"something went wrong while generating refresh and access token")
+    }
+}
+
 const registerUser = asynchandler(async (req,res)=>{
     // return res.status(200).json({
     //     message:"ok"
@@ -83,4 +101,83 @@ const registerUser = asynchandler(async (req,res)=>{
     )
 })
 
-export {registerUser}
+const loginUser = asynchandler(async (req,res)=>{
+    // take credentials -> req body
+    //check weather format of credentials are correct or not
+    //check weather user is already registered or not
+    //if registered, check credentials are correct or not
+    //access and refresh token
+    //send cookies
+    //if correct allow login
+
+    const {email,username,password} = req.body // destructured and stored user credentials
+
+    if(!username || !email){
+        throw new ApiError(400,"username or email is required !")
+    } //check wheather user has provided username or email
+
+    const user = await User.findOne({
+        $or:[{email},{username}]
+    }) // checking if username is given or email is given
+
+    if(!user){
+        throw new ApiError(404,"User does not exist")
+    } // if user doesnot register
+
+    const isPasswordValid = await user.isPasswordCorrect(password)
+    if(!isPasswordValid){
+        throw new ApiError(401,"password is incorrect")
+    } // checking is given password is correct
+
+    const {accessToken,refreshToken} = await generateAccessAndRefreshTokens(user._id);// generating access token and refresh token and storing them in variable
+
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+
+    //sending cookies
+    const options = {
+        httpOnly:true,
+        secure:true
+    } // now cookies can only be modified by server only not via frontend
+
+    return res.status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken",refreshToken,options)
+    .json(
+        new ApiResponse(200,{
+            user:loggedInUser,accessToken,refreshToken
+        }, //this whole json block is data which we mentioned in utils/ApiResponse.js
+        "User logged in successfully"
+    ) //here we are sending refresh token and access token in json again even we sent them in cookie bcz user can save them if he want explicitly
+    )
+
+})
+
+//log out 
+//clear cookies
+// also delete refresh token as user loggs out 
+const logoutUser = asynchandler(async(req,res)=>{
+    // we will use middleware to perform a mid action
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set:{
+                refreshToken:undefined
+            }
+        },
+        {
+            new:true  
+        }
+    )
+    const options={
+        httpOnly:true,
+        secure:true
+    }
+    return res.status(200)
+    .clearCookie("accessToken",options)
+    .clearCookie('refreshToken',options)
+    .json(new ApiResponse(200,{},"User logged Out"))
+})
+
+
+
+export {registerUser,loginUser,logoutUser}
