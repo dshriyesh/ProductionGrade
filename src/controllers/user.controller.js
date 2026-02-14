@@ -158,7 +158,7 @@ const loginUser = asynchandler(async (req,res)=>{
 const logoutUser = asynchandler(async(req,res)=>{
     // we will use middleware to perform a mid action
     await User.findByIdAndUpdate(
-        req.user._id,
+        req.user?._id,
         {
             $set:{
                 refreshToken:undefined
